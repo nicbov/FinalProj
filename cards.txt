@@ -1,0 +1,6 @@
+Special Cards:
+A = AND
+O = OR
+N = NOT (Skip)
+R = Reverse
+
