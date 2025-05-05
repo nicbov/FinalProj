@@ -1,0 +1,287 @@
+/* finalproject.c - Custom UNO-like Card Game */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_PLAYERS 4
+#define MAX_CARDS 100
+#define HAND_INITIAL 7
+#define NAME_LENGTH 50
+
+// Card struct
+typedef struct card_s {
+    char name;   // '0'-'9', 'A'=AND, 'O'=OR, 'N'=NOT, 'R'=Reverse
+    char color;  // 'R','Y','G','B' or 'S' for special
+} card;
+
+// Player struct
+typedef struct player_s {
+    char name[NAME_LENGTH];
+    card hand[MAX_CARDS];
+    int handSize;
+} player;
+
+// Global deck
+card deck[MAX_CARDS];
+int deckSize;
+
+// Function prototypes
+void initializeDeck(card deck[], int *deckSize);
+void shuffleDeck(card deck[], int deckSize);
+int drawCard(card deck[], int *deckSize, player *p);
+int isValidCard(card top, card cand);
+char* colorName(char c);
+void printCard(card c);
+void printPlayerHand(player *p);
+int handleAND(player *cur, player *next, card *pileTop, char *pileSpec);
+int handleOR (player *cur, player *next, card *pileTop, char *pileSpec);
+
+int main() {
+    srand((unsigned)time(NULL));
+    initializeDeck(deck, &deckSize);
+    shuffleDeck(deck, deckSize);
+
+    // --- Setup players ---
+    int numPlayers = 2;
+    printf("Enter number of players: ");
+    scanf("%d", &numPlayers);
+    getchar();
+    player players[MAX_PLAYERS];
+    for(int i=0;i<numPlayers;i++){
+        printf("Enter %s player’s name: ", i==0?"first":"second");
+        fgets(players[i].name, NAME_LENGTH, stdin);
+        players[i].name[strcspn(players[i].name, "\n")] = '\0';
+        players[i].handSize = 0;
+        for(int j=0;j<HAND_INITIAL;j++) drawCard(deck, &deckSize, &players[i]);
+    }
+
+    // Print initial hands
+    printf("\n");
+    for(int i=0;i<numPlayers;i++){
+        printf("%s’s hand:\n", players[i].name);
+        printPlayerHand(&players[i]);
+    }
+    printf("Card pile is empty.\n");
+
+    // Start pile
+    card pileTop = { '0','R' };
+    char pileSpec = 0;
+
+    int current = 0;
+    int direction = 1; // for multi-player
+    int winner = -1;
+
+    // --- Game loop ---
+    while(deckSize>0 && winner<0){
+        player *cur = &players[current];
+        player *next = &players[(current+direction+numPlayers)%numPlayers];
+        printf("%s, enter which card to play from 0 to %d: ",
+               cur->name, cur->handSize-1);
+        int choice; scanf("%d", &choice);
+
+        // Invalid index -> draw
+        if(choice<0 || choice>=cur->handSize){
+            printf("Invalid choice, %s does not have %d cards\n",
+                   cur->name, cur->handSize);
+            printf("%s, enter which card to play from 0 to %d: ",
+                   cur->name, cur->handSize-1);
+            scanf("%d", &choice);
+        }
+        card cand = cur->hand[choice];
+
+        // Cannot place -> error
+        if(!isValidCard(pileTop, cand)){
+            printf("Invalid choice, cannot place %s %c in %s %c\n",
+                   colorName(cand.color), cand.name,
+                   colorName(pileTop.color), pileTop.name);
+            continue;
+        }
+        // Remove candidate
+        for(int i=choice;i<cur->handSize-1;i++) cur->hand[i]=cur->hand[i+1];
+        cur->handSize--;
+
+        // Handle special vs normal
+        int skipNext = 0;
+        if(cand.name=='A') skipNext = handleAND(cur,next,&pileTop,&pileSpec);
+        else if(cand.name=='O') skipNext = handleOR(cur,next,&pileTop,&pileSpec);
+        else {
+            // NOT or Reverse or Number
+            if(cand.name=='N'){
+                printf("Next Player’s turn skipped.\n");
+                skipNext = 1;
+                pileSpec = 'N';
+            }
+            else if(cand.name=='R'){
+                direction *= -1;
+                pileSpec = 'R';
+                pileTop = cand;
+            } else {
+                pileSpec = 0;
+                pileTop = cand;
+            }
+        }
+
+        // Check win
+        if(cur->handSize==0){ winner = current; break; }
+
+        // Print pile top
+        if(pileSpec=='A' || pileSpec=='O')
+            printf("Top of card pile is: %s %c with %s\n",
+                   colorName(pileTop.color), pileTop.name,
+                   pileSpec=='A'?"AND":"OR");
+        else if(pileSpec=='N' || pileSpec=='R')
+            printf("Top of card pile is: %s %c\n",
+                   pileSpec=='R'?"Reverse":(""), (char)0);
+        else
+            printf("Top of card pile is: %s %c\n",
+                   colorName(pileTop.color), pileTop.name);
+
+        // Advance turn
+        if(!skipNext) current = (current+direction+numPlayers)%numPlayers;
+    }
+
+    // Announce winner
+    printf("%s wins the game!\n", players[winner].name);
+    return 0;
+}
+
+// --- Function implementations ---
+void initializeDeck(card deck[], int *dSize){
+    char cols[4]={'R','Y','G','B'};
+    int idx=0;
+    for(int c=0;c<4;c++){
+        for(int rep=0;rep<2;rep++){
+            for(char n='0';n<='9';n++){
+                deck[idx++] = (card){n,cols[c]};
+            }
+        }
+    }
+    for(int i=0;i<5;i++){ deck[idx++] = (card){'A','S'}; }
+    for(int i=0;i<5;i++){ deck[idx++] = (card){'O','S'}; }
+    for(int i=0;i<5;i++){ deck[idx++] = (card){'N','S'}; }
+    for(int i=0;i<5;i++){ deck[idx++] = (card){'R','S'}; }
+    *dSize = idx;
+}
+
+void shuffleDeck(card deck[], int dSize){
+    for(int i=0;i<10000;i++){
+        int a=rand()%dSize, b=rand()%dSize;
+        card t=deck[a]; deck[a]=deck[b]; deck[b]=t;
+    }
+}
+
+int drawCard(card deck[], int *dSize, player *p){
+    if(*dSize<=0) return 0;
+    p->hand[p->handSize++] = deck[--(*dSize)];
+    return 1;
+}
+
+int isValidCard(card top, card cand){
+    if(cand.color=='S') return 1;
+    return cand.color==top.color || cand.name==top.name;
+}
+
+char* colorName(char c){
+    switch(c){
+        case 'R': return "Red";
+        case 'Y': return "Yellow";
+        case 'G': return "Green";
+        case 'B': return "Blue";
+        default:  return "";
+    }
+}
+
+void printCard(card c){
+    if(c.color=='S'){
+        switch(c.name){
+            case 'A': printf("AND\n"); break;
+            case 'O': printf("OR\n"); break;
+            case 'N': printf("NOT\n"); break;
+            case 'R': printf("Reverse\n"); break;
+        }
+    } else {
+        printf("%s %c\n", colorName(c.color), c.name);
+    }
+}
+
+void printPlayerHand(player *p){
+    for(int i=0;i<p->handSize;i++){
+        printf("%d: ", i);
+        printCard(p->hand[i]);
+    }
+}
+
+int handleAND(player *cur, player *next, card *pileTop, char *pileSpec){
+    // pairing prompt
+    printf("Choose the card to play with AND from ");
+    for(int i=0, printed=0;i<cur->handSize;i++){
+        if(cur->hand[i].color!='S'){
+            if(printed) printf(", ");
+            printf("%d", i);
+            printed=1;
+        }
+    }
+    printf(": ");
+    int choice; scanf("%d", &choice);
+    while(choice<0 || choice>=cur->handSize || cur->hand[choice].color=='S'){
+        printf("Cannot play two special cards in one turn\n");
+        printf("Choose the card to play with AND from "); /* repeat listing */
+        choice=0; scanf("%d", &choice);
+    }
+    card pair = cur->hand[choice];
+    // remove pairing
+    for(int i=choice;i<cur->handSize-1;i++) cur->hand[i]=cur->hand[i+1];
+    cur->handSize--;
+    *pileTop = pair;
+    *pileSpec = 'A';
+    // next match?
+    for(int j=0;j<next->handSize;j++){
+        if(next->hand[j].name==pair.name && next->hand[j].color==pair.color){
+            printf("Card Matches, no AND penalty\n");
+            for(int k=j;k<next->handSize-1;k++) next->hand[k]=next->hand[k+1];
+            next->handSize--;
+            return 0;
+        }
+    }
+    printf("AND penalty, Draw 4\n");
+    for(int k=0;k<4;k++) drawCard(deck, &deckSize, next);
+    printPlayerHand(next);
+    return 1;
+}
+
+int handleOR(player *cur, player *next, card *pileTop, char *pileSpec){
+    // pairing prompt
+    printf("Choose the card to play with OR from ");
+    for(int i=0, printed=0;i<cur->handSize;i++){
+        if(cur->hand[i].color!='S'){
+            if(printed) printf(", ");
+            printf("%d", i);
+            printed=1;
+        }
+    }
+    printf(": ");
+    int choice; scanf("%d", &choice);
+    while(choice<0 || choice>=cur->handSize || cur->hand[choice].color=='S'){
+        printf("Cannot play two special cards in one turn\n");
+        printf("Choose the card to play with OR from "); choice=0; scanf("%d", &choice);
+    }
+    card pair = cur->hand[choice];
+    for(int i=choice;i<cur->handSize-1;i++) cur->hand[i]=cur->hand[i+1];
+    cur->handSize--;
+    *pileTop = pair;
+    *pileSpec = 'O';
+    // next match?
+    for(int j=0;j<next->handSize;j++){
+        if(next->hand[j].name==pair.name || next->hand[j].color==pair.color){
+            printf("Card Matches, no OR penalty\n");
+            for(int k=j;k<next->handSize-1;k++) next->hand[k]=next->hand[k+1];
+            next->handSize--;
+            return 0;
+        }
+    }
+    printf("OR penalty, Draw 4\n");
+    for(int k=0;k<4;k++) drawCard(deck, &deckSize, next);
+    printPlayerHand(next);
+    return 1;
+}
