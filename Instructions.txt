@@ -1,0 +1,65 @@
+UNO-Like Card Game Instructions
+
+OBJECTIVE:
+Be the first player to get rid of all your cards or have the fewest cards when the deck runs out.
+
+SETUP:
+1. 2-4 players can play (human or AI)
+2. Each player starts with 7 cards
+3. The remaining cards form the draw pile
+4. The top card of the draw pile starts the discard pile
+
+BASIC GAMEPLAY:
+1. On your turn, play a card that matches either:
+   The COLOR of the top discard pile card, OR
+   The NUMBER of the top discard pile card, OR
+   Any SPECIAL card (AND, OR, NOT, REVERSE)
+2. If you can't play a card, you must draw one card
+3. The game ends when one player has no cards left or the draw pile is empty
+
+SPECIAL CARDS:
+
+AND Card:
+Played on top of another card, singularly. For Example: if top of pile is Red 5 and you play AND, next player needs Red 5
+Next player must play a card matching BOTH the COLOR and NUMBER
+If they can't, they draw 4 cards
+Example: You play AND with Red 5 → Next player must play Red 5
+
+OR Card:
+Played on top of another card, singularly
+Next player must play a card matching EITHER the COLOR or NUMBER
+If they can't, they draw 4 cards
+Example: You play OR with Blue 3 → Next player can play any Blue card or any 3
+
+NOT Card (Skip):
+Played by itself
+Next player's turn is skipped
+In 2-player game, you get another turn
+
+REVERSE Card:
+Changes direction of play
+In 2-player game, acts like a NOT card (you go again)
+
+COMMON MISCONCEPTIONS:
+
+1. When you see "color() and number(N)" in messages:
+This refers to the NOT card (N) and means the color is irrelevant
+NOT cards don't affect colors, they just skip turns
+
+2. AND/OR cards can be played with any card
+as mentioned in number 1, an example of this is like when you play an OR 
+on a NOT card you will see player___ has to match with color() or number(N),
+if they don't they draw 4
+
+3. Color inheritance:
+Special cards inherit the color of the card they're played on
+After playing a special card, the current color remains what it was before
+
+4. When the deck runs out:
+The player with the fewest cards wins, not necessarily who played last
+
+TIPS:
+Pay attention to the current color shown in parentheses, usually will be abbreviated, but will be easy to assume
+Plan ahead when holding special cards
+Watch other players' reactions to guess what cards they might have
+
