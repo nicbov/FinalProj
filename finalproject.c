@@ -78,7 +78,16 @@ int drawCard(card **deck, int *deckSize, player *p) {
 }
 
 int isValidCard(card topOfPile, card candidate, char currentColor) {
-    if (candidate.color == 'S') return 1;
+    // Special cards can always be played (except AND/OR which have additional requirements)
+    if (candidate.color == 'S') {
+        // AND/OR can only be played on normal number cards (0-9)
+        if (candidate.name == 'A' || candidate.name == 'O') {
+            return (topOfPile.color != 'S'); // Only valid if top card is not special
+        }
+        return 1; // Other special cards (NOT, REVERSE) can be played anytime
+    }
+    
+    // Normal cards must match color or number
     return (candidate.color == currentColor) || (candidate.name == topOfPile.name);
 }
 
@@ -320,16 +329,16 @@ int main() {
     srand(time(NULL));
     
     int playerCount;
-    printf("Enter number of players (2-4): ");
+    printf("Enter number of players (2+): ");
     scanf("%d", &playerCount);
     getchar();
     
-    if (playerCount < 2 || playerCount > 4) {
+    if (playerCount < 2) {
         printf("Invalid number of players. Exiting.\n");
         return 1;
     }
     
-    player players[4];
+    player *players = malloc(playerCount * sizeof(player));
     for (int i = 0; i < playerCount; i++) {
         printf("Enter player %d's name (or 'AI' for computer player): ", i+1);
         fgets(players[i].name, 50, stdin);
@@ -454,6 +463,7 @@ int main() {
     }
     freeHand(deck);
     freeHand(pile);
+    free(players);
     
     return 0;
 }
